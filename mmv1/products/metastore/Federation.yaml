@@ -64,7 +64,6 @@ examples:
     name: 'dataproc_metastore_federation_bigquery'
     skip_test: true  # https://github.com/hashicorp/terraform-provider-google/issues/13710
     primary_resource_id: 'default'
-    min_version: beta
     primary_resource_name:
       'fmt.Sprintf("tf-test-metastore-fed%s", context["random_suffix"])'
     vars:
