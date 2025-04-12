@@ -54,7 +54,6 @@ ifeq ($(FORCE_DCL),)
   FORCE_DCL=latest
 endif
 terraform build provider:
-	@make validate_environment;
 	make mmv1
 	make tpgtools
 
