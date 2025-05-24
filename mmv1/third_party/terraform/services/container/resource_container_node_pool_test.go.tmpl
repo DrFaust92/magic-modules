@@ -4682,7 +4682,7 @@ func TestAccContainerNodePool_withFlexStart(t *testing.T) {
 		CheckDestroy: testAccCheckContainerClusterDestroyProducer(t),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccContainerNodePool_withFlexStart(clusterName, np, networkName, subnetworkName),
+				Config: testAccContainerNodePool_withFlexStart(clusterName, np, networkName, subnetworkName, true),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("google_container_node_pool.np", "node_config.0.machine_type", "n1-standard-1"),
 					resource.TestCheckResourceAttr("google_container_node_pool.np",
@@ -4696,11 +4696,26 @@ func TestAccContainerNodePool_withFlexStart(t *testing.T) {
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"node_config.0.taint"},
 			},
+			{
+				Config: testAccContainerNodePool_withFlexStart(clusterName, np, networkName, subnetworkName, false),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("google_container_node_pool.np", "node_config.0.machine_type", "n1-standard-1"),
+					resource.TestCheckResourceAttr("google_container_node_pool.np",
+						"node_config.0.reservation_affinity.0.consume_reservation_type", "NO_RESERVATION"),
+					resource.TestCheckResourceAttr("google_container_node_pool.np", "node_config.0.flex_start", "false"),
+				),
+			},
+			{
+				ResourceName:            "google_container_node_pool.np",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"node_config.0.taint"},
+			},
 		},
 	})
 }
 
-func testAccContainerNodePool_withFlexStart(clusterName, np, networkName, subnetworkName string) string {
+func testAccContainerNodePool_withFlexStart(clusterName, np, networkName, subnetworkName string, enabled bool) string {
 	return fmt.Sprintf(`
 data "google_container_engine_versions" "central1a" {
   location = "us-central1-a"
@@ -4732,7 +4747,7 @@ resource "google_container_node_pool" "np" {
 
   node_config {
    	machine_type = "n1-standard-1"
-	flex_start = true
+	flex_start = %t
 	max_run_duration = "604800s"
 
 	reservation_affinity {
@@ -4746,7 +4761,7 @@ resource "google_container_node_pool" "np" {
 	}
   }
 }
-`, clusterName, networkName, subnetworkName, np)
+`, clusterName, networkName, subnetworkName, np, enabled)
 }
 
 func TestAccContainerNodePool_tpuTopology(t *testing.T) {

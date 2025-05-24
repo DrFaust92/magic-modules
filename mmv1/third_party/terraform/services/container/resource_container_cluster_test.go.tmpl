@@ -517,12 +517,27 @@ func TestAccContainerCluster_withFlexStart(t *testing.T) {
 		CheckDestroy: testAccCheckContainerClusterDestroyProducer(t),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccContainerCluster_withFlexStart(clusterName, npName, networkName, subnetworkName),
+				Config: testAccContainerCluster_withFlexStart(clusterName, npName, networkName, subnetworkName, true),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("google_container_cluster.flex_start", "node_pool.0.node_config.0.machine_type", "n1-standard-1"),
 					resource.TestCheckResourceAttr("google_container_cluster.flex_start",
 						"node_pool.0.node_config.0.reservation_affinity.0.consume_reservation_type", "NO_RESERVATION"),
 					resource.TestCheckResourceAttr("google_container_cluster.flex_start", "node_pool.0.node_config.0.flex_start", "true"),
+				),
+			},
+			{
+				ResourceName:            "google_container_cluster.flex_start",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"deletion_protection", "min_master_version", "node_pool.0.node_config.0.taint"},
+			},
+			{
+				Config: testAccContainerCluster_withFlexStart(clusterName, npName, networkName, subnetworkName, false),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("google_container_cluster.flex_start", "node_pool.0.node_config.0.machine_type", "n1-standard-1"),
+					resource.TestCheckResourceAttr("google_container_cluster.flex_start",
+						"node_pool.0.node_config.0.reservation_affinity.0.consume_reservation_type", "NO_RESERVATION"),
+					resource.TestCheckResourceAttr("google_container_cluster.flex_start", "node_pool.0.node_config.0.flex_start", "false"),
 				),
 			},
 			{
@@ -7201,7 +7216,7 @@ resource "google_container_cluster" "max_run_duration" {
 `, clusterName, npName, duration, networkName, subnetworkName)
 }
 
-func testAccContainerCluster_withFlexStart(clusterName, npName, networkName, subnetworkName string) string {
+func testAccContainerCluster_withFlexStart(clusterName, npName, networkName, subnetworkName string, enabled bool) string {
 	return fmt.Sprintf(`
 data "google_container_engine_versions" "uscentral1a" {
   location = "us-central1-a"
@@ -7228,7 +7243,7 @@ resource "google_container_cluster" "flex_start" {
 
     node_config {
       machine_type = "n1-standard-1"
-	  flex_start = true
+	  flex_start = %t
 	  max_run_duration = "604800s"
 	  
 	  reservation_affinity {
@@ -7248,7 +7263,7 @@ resource "google_container_cluster" "flex_start" {
   subnetwork          = "%s"
 
 }
-`, clusterName, npName, networkName, subnetworkName)
+`, clusterName, npName, enabled, networkName, subnetworkName)
 }
 
 func testAccContainerCluster_withILBSubSetting(clusterName, npName, networkName, subnetworkName string) string {
