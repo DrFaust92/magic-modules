@@ -672,6 +672,44 @@ func schemaNodeConfig() *schema.Schema {
                                 Optional:    true,
                                 Description: `Defines whether to enable single process OOM killer.`,
                             },
+							"memory_manager": {
+								Type:             schema.TypeList,
+								Optional:         true,
+								MaxItems:         1,
+								DiffSuppressFunc: tpgresource.EmptyOrUnsetBlockDiffSuppress,
+								Description:      `Controls NUMA-aware Memory Manager configuration on the node. For more information, see: https://kubernetes.io/docs/tasks/administer-cluster/memory-manager/`,
+								Elem: &schema.Resource{
+									Schema: map[string]*schema.Schema{
+										"policy": {
+											Type:        schema.TypeString,
+											Optional:    true,
+											ValidateFunc: validation.StringInSlice([]string{"Static", "None", ""}, false),
+											Description: `Controls the memory management policy on the Node. See https://kubernetes.io/docs/tasks/administer-cluster/memory-manager/#policies The following values are allowed. * "none" * "static" The default value is 'none' if unspecified.`,
+											DiffSuppressFunc: tpgresource.EmptyOrDefaultStringSuppress("None"),
+										},
+									},
+								},
+							},
+							"topology_manager": {
+								Type:        schema.TypeList,
+								Optional:    true,
+								MaxItems:    1,
+								Description: `Controls Topology Manager configuration on the node. For more information, see: https://kubernetes.io/docs/tasks/administer-cluster/topology-manager/`,
+								Elem: &schema.Resource{
+									Schema: map[string]*schema.Schema{
+										"policy": {
+											Type:        schema.TypeString,
+											Optional:    true,
+											Description: `Configures the strategy for resource alignment. Allowed values are: * none: the default policy, and does not perform any topology alignment. * restricted: the topology manager stores the preferred NUMA node affinity for the container, and will reject the pod if the affinity if not preferred. * best-effort: the topology manager stores the preferred NUMA node affinity for the container. If the affinity is not preferred, the topology manager will admit the pod to the node anyway. * single-numa-node: the topology manager determines if the single NUMA node affinity is possible. If it is, Topology Manager will store this and the Hint Providers can then use this information when making the resource allocation decision. If, however, this is not possible then the Topology Manager will reject the pod from the node. This will result in a pod in a Terminated state with a pod admission failure. The default policy value is 'none' if unspecified. Details about each strategy can be found here (https://kubernetes.io/docs/tasks/administer-cluster/topology-manager/#topology-manager-policies).`,
+										},
+										"scope": {
+											Type:        schema.TypeString,
+											Optional:    true,
+											Description: `The Topology Manager aligns resources in following scopes: * container * pod The default scope is 'container' if unspecified. See https://kubernetes.io/docs/tasks/administer-cluster/topology-manager/#topology-manager-scopes`,
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -1486,7 +1524,58 @@ func expandKubeletConfig(v interface{}) *container.NodeKubeletConfig {
 	if singleProcessOomKill, ok := cfg["single_process_oom_kill"]; ok {
 	    kConfig.SingleProcessOomKill = singleProcessOomKill.(bool)
     }
+	if memoryManager, ok := cfg["memory_manager"]; ok {
+		kConfig.MemoryManager = expandMemoryManager(memoryManager)
+	}
+	if topologyManager, ok := cfg["topology_manager"]; ok {
+		kConfig.TopologyManager = expandTopologyManager(topologyManager)
+	}
 	return kConfig
+}
+
+func expandMemoryManager(v interface{}) *container.MemoryManager {
+	if v == nil {
+		return nil
+	}
+	ls := v.([]interface{})
+	if len(ls) == 0 {
+		return nil
+	}
+	if ls[0] == nil {
+		return &container.MemoryManager{}
+	}
+	cfg := ls[0].(map[string]interface{})
+
+	memoryManager := &container.MemoryManager{}
+	if v, ok := cfg["policy"]; ok {
+		memoryManager.Policy = v.(string)
+	}
+
+	return memoryManager
+}
+
+func expandTopologyManager(v interface{}) *container.TopologyManager {
+	if v == nil {
+		return nil
+	}
+	ls := v.([]interface{})
+	if len(ls) == 0 {
+		return nil
+	}
+	if ls[0] == nil {
+		return &container.TopologyManager{}
+	}
+	cfg := ls[0].(map[string]interface{})
+
+	topologyManager := &container.TopologyManager{}
+	if v, ok := cfg["policy"]; ok {
+		topologyManager.Policy = v.(string)
+	}
+	if v, ok := cfg["scope"]; ok {
+		topologyManager.Scope = v.(string)
+	}
+
+	return topologyManager
 }
 
 func expandLinuxNodeConfig(v interface{}) *container.LinuxNodeConfig {
@@ -2139,7 +2228,30 @@ func flattenKubeletConfig(c *container.NodeKubeletConfig) []map[string]interface
 			"image_minimum_gc_age":                   c.ImageMinimumGcAge,
 			"image_maximum_gc_age":                   c.ImageMaximumGcAge,
 			"allowed_unsafe_sysctls":                 c.AllowedUnsafeSysctls,
-			"single_process_oom_kill":                 c.SingleProcessOomKill,
+			"single_process_oom_kill":                c.SingleProcessOomKill,
+			"memory_manager":                         flattenMemoryManager(c.MemoryManager),
+			"topology_manager":                       flattenTopologyManager(c.TopologyManager),
+		})
+	}
+	return result
+}
+
+func flattenMemoryManager(c *container.MemoryManager) []map[string]interface{} {
+	result := []map[string]interface{}{}
+	if c != nil {
+		result = append(result, map[string]interface{}{
+			"policy": c.Policy,
+		})
+	}
+	return result
+}
+
+func flattenTopologyManager(c *container.TopologyManager) []map[string]interface{} {
+	result := []map[string]interface{}{}
+	if c != nil {
+		result = append(result, map[string]interface{}{
+			"policy": c.Policy,
+			"scope":  c.Scope,
 		})
 	}
 	return result

@@ -1485,6 +1485,31 @@ such as `"300ms"`. Valid time units are "ns", "us" (or "µs"), "ms", "s", "m",
 
 * `single_process_oom_kill` - (Optional) Defines whether to enable single process OOM killer. If true, the processes in the container will be OOM killed individually instead of as a group.
 
+* `memory_manager` - (Optional) Controls NUMA-aware Memory Manager configuration on the node. For more information, see [kubernetes memory manager docs](https://kubernetes.io/docs/tasks/administer-cluster/memory-manager/).
+
+<a name="nested_memory_manager"></a>The `memory_manager` block supports:
+
+* `policy` - (Optional) Controls the memory management policy on the Node. See [Memory manager policies](https://kubernetes.io/docs/tasks/administer-cluster/memory-manager/#policies).
+  The following values are allowed:
+  * `None`
+  * `Static`
+  The default value is `None` if unspecified.
+
+* `topology_manager` - (Optional) Controls Topology Manager configuration on the node. For more information, see [kubernetes topology manager docs](https://kubernetes.io/docs/tasks/administer-cluster/topology-manager/).
+
+<a name="nested_topology_manager"></a>The `topology_manager` block supports:
+
+* `policy` - (Optional) Configures the strategy for resource alignment.
+  Allowed values are:
+  * `none`: the default policy, and does not perform any topology alignment.
+  * `restricted`: the topology manager stores the preferred NUMA node affinity for the container, and will reject the pod if the affinity if not preferred.
+  * `best-effort`: the topology manager stores the preferred NUMA node affinity for the container. If the affinity is not preferred, the topology manager will admit the pod to the node anyway.
+  * `single-numa-node`: the topology manager determines if the single NUMA node affinity is possible. If it is, Topology Manager will store this and the Hint Providers can then use this information when making the resource allocation decision. If, however, this is not possible then the Topology Manager will reject the pod from the node. This will result in a pod in a Terminated state with a pod admission failure. The default policy value is `none` if unspecified. Details about each strategy can be found [here](https://kubernetes.io/docs/tasks/administer-cluster/topology-manager/#topology-manager-policies).
+* `scope` - (Optional) The Topology Manager aligns resources in following scopes:
+  * `container`
+  * `pod`
+ The default scope is `container` if unspecified. See [Kubernetes topology manager scopes](https://kubernetes.io/docs/tasks/administer-cluster/topology-manager/#topology-manager-scopes)
+
 <a name="nested_linux_node_config"></a>The `linux_node_config` block supports:
 
 * `sysctls` - (Optional) The Linux kernel parameters to be applied to the nodes
